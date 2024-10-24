@@ -1,0 +1,178 @@
+
+###Dockerfile.base###
+
+
+# Stage 1: Build Go modules
+FROM golang:1.22.1-bookworm AS gobuild
+
+ENV TZ=Etc/UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    iproute2 \
+    iptables \
+    ca-certificates \
+	libzmq5-dev \
+	make \
+	pkg-config \
+	git && \
+    rm -rf /var/lib/apt/lists/*
+    
+
+# Install Tailscale
+RUN curl -fsSL https://tailscale.com/install.sh | sh
+
+# Clean up old Tailscale state
+RUN tailscaled --cleanup
+
+# Set working directory
+WORKDIR /usr/local/src/ot-sim
+
+# Create working directory
+RUN mkdir -p /usr/local/src/ot-sim/src/go
+
+# Copy the Go source code
+COPY src/go /usr/local/src/ot-sim/src/go
+COPY src/go /src/go
+
+# Build and install Go Modules
+RUN make -C src/go install
+
+
+
+
+
+
+
+# Stage 2: Build Python modules
+FROM python:3.11-bookworm AS pybuild
+
+# Set working directory
+WORKDIR /usr/local/src/ot-sim
+
+# Copy python source code
+COPY src/python /usr/local/src/ot-sim/src/python
+COPY src/python/setup.py /usr/local/src/ot-sim/src/python/setup.py
+
+COPY testing /usr/local/src/ot-sim/testing
+
+
+# Install Python modules via setup.py
+RUN python3 -m pip install --no-cache-dir setuptools && \
+    python3 setup.py install
+
+
+
+
+
+
+
+# Stage 3: Build C/C++ components
+FROM debian:bookworm AS build
+
+ENV TZ=Etc/UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    libboost-dev \
+    libczmq-dev \
+    libxml2-dev \
+    libzmq3-dev \
+    pkg-config \
+    python3-dev \
+    python3-pip \
+    wget
+
+# Set working directory
+WORKDIR /usr/local/src/ot-sim
+
+# Copy the C/C++ source code and CMakelists
+COPY ./CMakeLists.txt /usr/local/src/ot-sim/CMakeLists.txt
+COPY ./src/c /usr/local/src/ot-sim/src/c
+COPY ./src/c++ /usr/local/src/ot-sim/src/c++
+
+# Copy the .git directory to allow git submodule process
+COPY .git /usr/local/src/ot-sim/.git
+
+
+# Build and install C/C++ components
+RUN cmake -S /usr/local/src/ot-sim -B /usr/local/src/ot-sim/build && \
+	cmake --build /usr/local/src/ot-sim/build -j $(nproc) --target install
+
+
+
+
+
+
+
+
+# Stage 4: Production image
+FROM debian:bookworm AS prod
+
+ENV TZ=Etc/UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Copy built components from previous stages
+COPY --from=gobuild /usr/local /usr/local
+COPY --from=pybuild /usr/local /usr/local
+COPY --from=build   /usr/local /usr/local
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    bash-completion \
+    supervisor \
+    curl \
+    git \
+    tmux \
+    tree \
+    vim \
+    wget \
+    xz-utils \
+    libczmq4 \
+    libsodium23 \
+    libxml2 \
+    libzmq5 \
+    python3-pip \
+    zabbix-agent2 \
+    procps \
+    net-tools \
+    tshark \
+    tcpdump \
+    nano 
+
+# Configure policy-rc.d to avoid service start issues
+RUN echo '#!/bin/sh\nexit 101' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d
+
+# Install Overmind for managing Procfiles
+RUN curl -L https://github.com/DarthSim/overmind/releases/download/v2.2.2/overmind-v2.2.2-linux-amd64.gz \
+    | gunzip --stdout > /usr/local/bin/overmind && \
+    chmod +x /usr/local/bin/overmind
+
+# Install Python dependencies
+RUN python3 -m pip install --break-system-packages numpy pandas pyzmq requests windpowerlib
+
+# Install HELICS if running on x86_64
+RUN if [ "$(uname -m)" = "x86_64" ]; then \
+    python3 -m pip install --break-system-packages helics~=3.4.0; \
+    fi
+
+# Run ldconfig to update the dynamic linker run-time bindings
+RUN ldconfig
+
+# Set the working directory
+WORKDIR /root
+
+# Copy the testing directory, including broker.py
+COPY testing /etc/ot-sim/main-ctlr/
+
+#Optional: Install Node-RED components 
+ADD install-node-red.sh .
+ARG TARGETARCH
+RUN /root/install-node-red.sh && rm /root/install-node-red.sh
+ADD ./src/js/node-red /root/.node-red/nodes/ot-sim
+RUN cd /root/.node-red/nodes/ot-sim && npm install && cd /root
+

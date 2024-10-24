@@ -1,0 +1,5 @@
+# Blade 1 Procfile to start all OT-Sim processes
+
+backplane: ot-sim-message-bus /etc/ot-sim/config.xml
+ground-truth: ot-sim-ground-truth-module /etc/ot-sim/config.xml
+modbus: ot-sim-modbus-module /etc/ot-sim/config.xml

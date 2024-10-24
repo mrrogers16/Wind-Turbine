@@ -1,0 +1,6 @@
+# Anemometer procfile for starting all OT-Sim processes
+
+backplane: ot-sim-message-bus /etc/ot-sim/anemometer/config.xml
+ground-truth: ot-sim-ground-truth-module /etc/ot-sim/anemometer/config.xml
+turbine-anemometer: ot-sim-wind-turbine-anemometer-module /etc/ot-sim/anemometer/config.xml
+modbus: ot-sim-modbus-module /etc/ot-sim/anemometer/config.xml

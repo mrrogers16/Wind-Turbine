@@ -1,0 +1,31 @@
+# Use the multi-stage base image that contains OT-Sim and its dependencies
+FROM mclarke15/ot-sim-base:latest
+
+# Install Zabbix Agent2
+RUN apt-get update && \
+	apt-get install -y zabbix-agent2 supervisor
+
+# Copy Zabbix Agent2 configuration for main-ctlr
+COPY custom_containers/blade_1/zabbix_agent2_blade_1.conf /etc/zabbix/zabbix_agent2.conf
+
+# Copy the OT-Sim config file for blade-1
+COPY ./configs/ot-sim/blade-1.xml /etc/ot-sim/config.xml
+
+# Copy supervisord configuration for manging services
+COPY custom_containers/blade_1/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Copy Procfile.blade-1 into container for starting all OT-Sim modules
+COPY custom_containers/blade_1/Procfile.blade-1 /etc/ot-sim/blade_1/Procfile.blade-1
+
+# Expose necessary ports for OT-Sim and other services
+# OT-Sim
+EXPOSE 1880
+# Zabbix Agent 2
+EXPOSE 10050  
+# Modbus
+EXPOSE 502
+# DNP3
+EXPOSE 20000
+
+# Start Zabbix Agent2 and OT-Sim CPU module
+CMD ["/usr/bin/supervisord"]

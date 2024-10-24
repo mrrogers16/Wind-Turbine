@@ -1,0 +1,6 @@
+# Yaw Controller Procfile to start all OT-Sim processes
+
+message-bus: ot-sim-message-bus /etc/ot-sim/config/config.xml
+ground-truth: ot-sim-ground-truth-module /etc/ot-sim/config/config.xml
+modbus: ot-sim-modbus-module /etc/ot-sim/config/config.xml
+logic: ot-sim-logic-module /etc/ot-sim/config/config.xml

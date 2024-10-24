@@ -1,0 +1,37 @@
+FROM ubuntu:20.04
+
+RUN apt update && apt install -y --no-install-recommends \
+	dsniff \
+	lxterminal \
+	iproute2 \
+	curl \
+	nano \
+	novnc \
+	openbox \
+	nmap \
+	tcpdump \
+	wireshark \
+	iptables \
+	net-tools \
+	iputils-ping \
+	python3  \
+	python3-pip \
+	&& rm -rf /var/lib/apt/lists
+
+# Ensure pip is up to date
+RUN python3 -m pip install --upgrade pip
+
+# Download and install mitmproxy
+RUN curl -L https://downloads.mitmproxy.org/10.4.2/mitmproxy-10.4.2-linux-x86_64.tar.gz -o /tmp/mitmproxy.tar.gz \
+	&& tar -xvzf /tmp/mitmproxy.tar.gz -C /tmp \
+	&& mv /tmp/mitmproxy /usr/local/bin/mitmproxy \
+    && mv /tmp/mitmdump /usr/local/bin/mitmdump \
+    && mv /tmp/mitmweb /usr/local/bin/mitmweb \
+    && chmod +x /usr/local/bin/mitmproxy /usr/local/bin/mitmdump /usr/local/bin/mitmweb \
+    && rm /tmp/mitmproxy.tar.gz
+
+
+EXPOSE 8080
+
+WORKDIR /root
+CMD ["/bin/bash"]

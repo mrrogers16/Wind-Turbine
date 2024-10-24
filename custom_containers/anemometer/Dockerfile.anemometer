@@ -1,0 +1,37 @@
+# Use the multi-stage base image that contains OT-Sim and its dependencies
+FROM mclarke15/ot-sim-base:latest
+
+# Install Zabbix Agent2
+RUN apt-get update && \
+	apt-get install -y zabbix-agent2 \
+	supervisor \
+	net-tools \
+	iputils-ping
+
+
+# Copy Zabbix Agent2 configuration for anemometer
+COPY custom_containers/anemometer/zabbix_agent2_anemometer.conf /etc/zabbix/zabbix_agent2.conf
+
+# Copy supervisord configuration for managing services
+COPY custom_containers/anemometer/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Copy Procfile.anemometer into container for starting all OT-Sim modules
+COPY custom_containers/anemometer/Procfile.anemometer /etc/ot-sim/anemometer/Procfile.anemometer
+
+# Copy the OT-Sim config file for blade-1
+COPY ./configs/ot-sim/anemometer.xml /etc/ot-sim/anemometer/config.xml
+
+# Expose Zabbix Agent2 port
+EXPOSE 10050
+
+# Expose Modbus port
+EXPOSE 502
+
+# Expose DNP3 port
+EXPOSE 20000
+
+# Expose OT-Sim API
+#EXPOSE 9101
+
+# Start Zabbix Agent2 and OT-Sim CPU module
+CMD ["/usr/bin/supervisord"]

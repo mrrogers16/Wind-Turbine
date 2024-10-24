@@ -1,0 +1,47 @@
+# Use the multi-stage base image that contains OT-Sim and its dependencies
+FROM mclarke15/ot-sim-base:latest
+
+# Install Zabbix Agent2
+RUN apt-get update && \
+	apt-get install -y zabbix-agent2 \
+	supervisor \
+	net-tools \
+	iputils-ping
+
+
+###TESTING###
+# Copy opensearch health check script
+COPY custom_containers/main_ctlr/wait-for-opensearch.sh /usr/local/bin/wait-for-opensearch.sh
+
+# Make exe
+RUN chmod +x /usr/local/bin/wait-for-opensearch.sh
+
+########WORKINGHERE##########
+# Copy OT-Sim configuration file for yaw-ctlr
+COPY ./configs/ot-sim/yaw-controller.xml /etc/ot-sim/config/config.xml
+
+# Copy Zabbix Agent2 configuration for yaw-ctlr
+COPY custom_containers/yaw_ctlr/zabbix_agent2_yaw_ctlr.conf /etc/zabbix/zabbix_agent2.conf
+
+# Copy Procfile.yaw-ctlr into container for starting all OT-Sim modules
+COPY custom_containers/yaw_ctlr/Procfile.yaw-ctlr /etc/ot-sim/yaw-ctlr/Procfile.yaw-ctlr
+
+# Copy supervisord configuration for manging services
+COPY custom_containers/yaw_ctlr/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Expose Zabbix Agent2 port
+EXPOSE 10050
+
+# Expose Modbus port
+EXPOSE 502
+
+# Expose DNP3 port
+EXPOSE 20000
+
+# Expose OT-Sim API
+#EXPOSE 9101
+
+# Start Zabbix Agent2 and OT-Sim CPU Module
+# WORKING COMMAND WITHOUT HEALTHCHECK
+# CMD ["/usr/bin/supervisord"]
+CMD ["/bin/bash", "-c", "/usr/local/bin/wait-for-opensearch.sh && /usr/bin/supervisord"]

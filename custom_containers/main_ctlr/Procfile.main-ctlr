@@ -1,0 +1,11 @@
+# Main-ctlr Procfile to start all OT-Sim processes
+
+broker: python3 /usr/local/src/ot-sim/testing/e2e/helics/broker.py
+backplane: ot-sim-message-bus /etc/ot-sim/config/config.xml
+ground-truth: ot-sim-ground-truth-module /etc/ot-sim/config/config.xml
+turbine-power-output: ot-sim-wind-turbine-power-output-module /etc/ot-sim/config/config.xml
+logic: ot-sim-logic-module /etc/ot-sim/config/config.xml
+modbus: ot-sim-modbus-module /etc/ot-sim/config/config.xml
+dnp3: ot-sim-dnp3-module /etc/ot-sim/config/config.xml
+node-red: ot-sim-node-red-module /etc/ot-sim/config/config.xml
+#tailscale: ot-sim-tailscale-module /etc/ot-sim/config/config.xml

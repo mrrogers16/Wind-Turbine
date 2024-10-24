@@ -1,0 +1,30 @@
+# Use Zabbix server MySQL image as the base
+FROM zabbix/zabbix-server-mysql:ubuntu-5.0-latest
+
+# Ensure that apt-get lists are cleared and accessible
+USER root
+
+# Optional additional configurations
+
+RUN apt-get update && apt-get install -y \
+	curl \
+	nano \
+	&& apt-get clean
+
+# Ensure zabbix can access /tmp
+RUN chown zabbix:zabbix /tmp
+
+# Switch back to reg user
+USER zabbix
+
+# Set environment variables for MySQL connection
+ENV DB_SERVER_HOST=zabbix-db
+ENV MYSQL_USER=zabbix
+ENV MYSQL_PASSWORD=zabbix_password
+ENV MYSQL_DATABASE=zabbix
+
+## Expose necessary Zabbix ports
+EXPOSE 10051
+
+# Start zabbix and keep container running
+CMD ["zabbix_server", "--foreground"]

@@ -1,0 +1,61 @@
+# Use the multi-stage base image that contains OT-Sim and its dependencies
+FROM mclarke15/ot-sim-base:latest
+
+# Install Tailscale dependencies
+RUN apt-get update && \
+	apt-get install -y curl \
+	zabbix-agent2 \
+	net-tools \
+	iputils-ping \
+	iproute2 \
+	iptables \
+	ca-certificates \
+	supervisor && \
+	rm -rf /var/lib/apt/lists/*
+
+# Install Tailscale
+RUN curl -fsSL https://tailscale.com/install.sh | sh
+
+# Clean up old Tailscale state
+RUN tailscaled --cleanup
+
+###TESTING###
+# Copy opensearch health check script
+COPY custom_containers/main_ctlr/wait-for-opensearch.sh /usr/local/bin/wait-for-opensearch.sh
+
+# Make exe
+RUN chmod +x /usr/local/bin/wait-for-opensearch.sh
+
+# Copy Zabbix Agent2 configuration for main-ctlr
+COPY custom_containers/main_ctlr/zabbix_agent2_main_ctlr.conf /etc/zabbix/zabbix_agent2.conf
+
+# Copy supervisord configuration for managing services
+COPY custom_containers/main_ctlr/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Copy Procfile.main-ctlr into container for starting all OT-Sim modules
+COPY custom_containers/main_ctlr/Procfile.main-ctlr /etc/ot-sim/main-ctlr/Procfile.main-ctlr
+
+# Copy OT-Sim configuration file for main-ctlr
+COPY ./configs/ot-sim/main-controller.xml /etc/ot-sim/config/config.xml
+
+# Create supervisord log directory
+RUN mkdir -p /var/log/supervisor
+
+
+
+
+# Expose necessary ports for OT-Sim and other services
+# OT-Sim
+EXPOSE 1880
+# Zabbix Agent 2
+EXPOSE 10050  
+# Modbus
+EXPOSE 502
+# DNP3
+EXPOSE 20000
+# Opensearch 
+EXPOSE 9200
+
+# Start everything using supervisor (defined in supervisord.conf)
+#CMD ["/usr/bin/supervisord"]
+CMD ["/bin/bash", "-c", "/usr/local/bin/wait-for-opensearch.sh && /usr/bin/supervisord"]

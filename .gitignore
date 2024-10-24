@@ -1,0 +1,4 @@
+configs/grafana/plugins/*
+!configs/grafana/plugins/.gitkeep
+configs/mysql/zabbix/history.ibd
+configs/mysql/zabbix/hitory_uint.ibd
